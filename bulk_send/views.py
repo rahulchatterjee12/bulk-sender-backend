@@ -9,14 +9,33 @@ from .models import ScheduleTask
 from .serializers import ScheduleTaskSerializer
 import datetime
 import ast
+import logging
 
+logger = logging.getLogger('manual')
 
 class ScheduleDetailView(APIView):
     def get(self, request, id, *args, **kwargs):
+        logger.info(f'schedule details fetch fo schedule_id: {id}')
         schedule = get_object_or_404(ScheduleTask, id=id)
         serializer = ScheduleTaskSerializer(schedule)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+class ScheduleRunner(APIView):
+    def get(self,request):
+            now = timezone.now()
+            current_date = now.date()
+            current_time = now.time()
+
+            pending_schedules = ScheduleTask.objects.filter(
+                status="pending", schedule_date=current_date
+            )
+            for schedule in pending_schedules:
+                for phone in schedule.phone_numbers:
+                    phone['status'] = "not send"
+                schedule.status = "completed"
+                schedule.save()
+
+            return Response([], status=status.HTTP_200_OK)
 
 class CreateScheduleView(APIView):
     def post(self, request, *args, **kwargs):

@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "django_celery_beat",
     "django_crontab",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -133,4 +134,51 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-CRONJOBS = [("*/1 * * * *", "bulk_send.cron.my_scheduled_task")]
+
+
+import os
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': True,  # Disable all existing loggers
+    'formatters': {
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'manual_log.log'),
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'manual': {  
+            'handlers': ['file'],
+            'level': 'DEBUG',
+            'propagate': False,  
+        },
+    },
+}
+
+
+CRONJOBS = [("*/1 * * * *", "bulk_send.cron.my_scheduled_task",f'>> {BASE_DIR}/temp.log')]
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # Replace with your Redis URL
+CELERY_RESULT_BACKEND = 'redis://localhost:6379'  # Replace with your Redis URL
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'runner': {
+        'task': 'bulk_send.cron.my_scheduled_task',
+        'schedule': crontab(minute='*/1'),
+    },
+}
+
+CELERY_TASK_ALWAYS_EAGER = True

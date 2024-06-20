@@ -1,17 +1,23 @@
 from django.utils import timezone
 from bulk_send.models import ScheduleTask
+from celery import shared_task
+import requests
+
+import logging
+
+from core.celery import app
 
 
+# Get an instance of the custom logger
+logger = logging.getLogger('manual')
+
+@shared_task
+@app.task
 def my_scheduled_task():
-    now = timezone.now()
-    pending_schedules = ScheduleTask.objects.filter(
-        status="pending", schedule_date__lte=now
-    )
+    logger.info("scheduler called")
 
-    for schedule in pending_schedules:
-        for phone in schedule.phone_numbers:
-            phone.status = "not send"
-        schedule.status = "completed"
-        schedule.save()
+    response = requests.get('http://127.0.0.1:8000/whatsapp/runner')
+    if response.status_code== 200:
+        logger.info("Massages has been send")
 
-    print("Task Completed")
+    logger.info("Task Completed")
